@@ -1,0 +1,40 @@
+{
+  "export_dir": "work/nvfp4-decoder-v1",
+  "quant_algo": "NVFP4",
+  "group_size": 16,
+  "kv_cache_quant_algo": null,
+  "config_has_quantization_config": true,
+  "n_tensors_export": 1471,
+  "n_tensors_upstream": 871,
+  "nvfp4_linear_modules": 200,
+  "scale_tensors_checked": 600,
+  "bad_scale_tensors": 0,
+  "upstream_tensors_missing_in_export": [],
+  "n_upstream_missing": 0,
+  "unexpected_extra_tensors": [],
+  "mhc_tensors": 96,
+  "mhc_all_fp32": true,
+  "mtp_tensors": 15,
+  "mtp_dtypes": [
+    "BF16"
+  ],
+  "physical_layer_ids": "0..31 (32)",
+  "elements_by_dtype": {
+    "BF16": 2740891376,
+    "F32": 3146512,
+    "U8": 3456106496,
+    "F8_E4M3": 432013312
+  },
+  "GB_by_dtype": {
+    "BF16": 5.482,
+    "F32": 0.013,
+    "U8": 3.456,
+    "F8_E4M3": 0.432
+  },
+  "total_file_GB": 9.383,
+  "upstream_params_incl_mtp": 9656250480,
+  "nvfp4_params": 6912212992,
+  "fraction_params_nvfp4": 0.7158,
+  "problems": [],
+  "ok": true
+}

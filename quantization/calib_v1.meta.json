@@ -1,0 +1,72 @@
+{
+  "version": "calib_v1",
+  "seed": 20261030,
+  "n": 256,
+  "counts": {
+    "chat": 77,
+    "code": 51,
+    "math": 51,
+    "tools": 38,
+    "image": 39
+  },
+  "n_thinking_examples": 26,
+  "langs_chat": {
+    "en": 58,
+    "zh": 10,
+    "es": 7,
+    "ca": 2
+  },
+  "text_tokens": {
+    "min": 25,
+    "max": 1551,
+    "mean": 233.29296875,
+    "sum": 59723
+  },
+  "max_text_tokens_filter": 1800,
+  "sources": {
+    "chat": {
+      "repo": "OpenAssistant/oasst2",
+      "rev": "179dd21fc55192153d94adb0e0ce8f69e222bf75",
+      "file": "data/train-00000-of-00001-88ba0162028a73fc.parquet",
+      "split": "train",
+      "license": "Apache-2.0"
+    },
+    "code": {
+      "repo": "google-research-datasets/mbpp",
+      "rev": "4bb6404fdc6cacfda99d4ac4205087b89d32030c",
+      "file": "full/train-00000-of-00001.parquet",
+      "split": "full/train",
+      "license": "CC-BY-4.0"
+    },
+    "math": {
+      "repo": "openai/gsm8k",
+      "rev": "740312add88f781978c0658806c59bc2815b9866",
+      "file": "main/train-00000-of-00001.parquet",
+      "split": "main/train",
+      "license": "MIT"
+    },
+    "tools": {
+      "repo": "glaiveai/glaive-function-calling-v2",
+      "rev": "e7f4b6456019f5d8bcb991ef0dd67d8ff23221ac",
+      "file": "glaive-function-calling-v2.json",
+      "split": "train",
+      "license": "Apache-2.0"
+    },
+    "image": {
+      "repo": "lmms-lab/textvqa",
+      "rev": "9c0699cd19768ac5ab97568f6b3cbac4c0062884",
+      "file": "data/train-00000-of-00020.parquet",
+      "split": "train (shard 0 of 20)",
+      "license": "TextVQA annotations CC-BY-4.0; images OpenImages CC-BY-2.0 (Flickr attribution)"
+    }
+  },
+  "eval_overlap_13gram": [
+    {
+      "id": "calib_v1_203",
+      "source": "glaive-fc-v2:108408",
+      "n_shared_13grams": 1,
+      "example": "type function function name send_email description send an email parameters type object properties"
+    }
+  ],
+  "sha256": "9a4d2112ef71820a5a6d8b015b4996092d4c08c3a2aa1abf7303aa5cd3b7ff83"
+}

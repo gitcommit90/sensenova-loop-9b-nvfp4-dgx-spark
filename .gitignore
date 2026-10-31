@@ -1,0 +1,8 @@
+/models/
+.venv*/
+__pycache__/
+*.pyc
+.cache/
+*.safetensors
+.env
+*.token

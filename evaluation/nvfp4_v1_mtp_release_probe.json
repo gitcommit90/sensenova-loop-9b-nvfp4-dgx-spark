@@ -1,0 +1,82 @@
+{
+ "mult": {
+  "content": "91",
+  "reasoning": "",
+  "tool_calls": null,
+  "usage": {
+   "prompt_tokens": 27,
+   "total_tokens": 30,
+   "completion_tokens": 3,
+   "prompt_tokens_details": null,
+   "reasoning_tokens": 0,
+   "completion_tokens_details": null
+  }
+ },
+ "haiku": {
+  "content": "Green sphere, white seam,\nBounces true on court's warm ground,\nA fleeting, bright joy.",
+  "reasoning": "",
+  "tool_calls": null,
+  "usage": {
+   "prompt_tokens": 21,
+   "total_tokens": 45,
+   "completion_tokens": 24,
+   "prompt_tokens_details": null,
+   "reasoning_tokens": 0,
+   "completion_tokens_details": null
+  }
+ },
+ "thinking": {
+  "content": "\n\n# Finding the Train's Speed\n\n**Given:**\n- Distance = 60 km\n- Time = 45 minutes\n\n**Step 1: Convert time to hours**\n\n45 minutes = 45/60 = **3/4 hour**\n\n**Step 2: Calculate speed**\n\n$$\\text{Speed} = \\frac{\\text{Distance}}{\\text{Time}} = \\frac{60 \\text{ km}}{3/4 \\text{ hour}} = 60 \\times \\frac{4}{3} = \\boxed{80 \\text{ km/h}}$$",
+  "reasoning": "The train goes 60 km in 45 minutes.\n\nTo find the speed in km/h:\n\nSpeed = Distance / Time\n\nTime = 45 minutes = 45/60 hours = 3/4 hours\n\nSpeed = 60 km / (3/4 hours) = 60 × 4/3 = 80 km/h\n",
+  "tool_calls": null,
+  "usage": {
+   "prompt_tokens": 32,
+   "total_tokens": 244,
+   "completion_tokens": 212,
+   "prompt_tokens_details": null,
+   "reasoning_tokens": 80,
+   "completion_tokens_details": {
+    "reasoning_tokens": 80
+   }
+  }
+ },
+ "tool": {
+  "content": "",
+  "reasoning": "",
+  "tool_calls": [
+   {
+    "id": "call_3bdd055af15c4337a2b9fe21",
+    "index": 0,
+    "type": "function",
+    "function": {
+     "name": "get_weather",
+     "arguments": "{\"city\": \"Paris\", \"unit\": \"celsius\"}"
+    }
+   }
+  ],
+  "usage": {
+   "prompt_tokens": 306,
+   "total_tokens": 345,
+   "completion_tokens": 39,
+   "prompt_tokens_details": null,
+   "reasoning_tokens": 0,
+   "completion_tokens_details": null
+  }
+ },
+ "image": {
+  "content": "A yellow mobile tyre fitting service van, branded with \"ATS\" and \"Euromaster\" logos, is driving on a road with its driver visible inside. Behind it, a white van and a dark car are also traveling on the same road.",
+  "reasoning": "",
+  "tool_calls": null,
+  "usage": {
+   "prompt_tokens": 1013,
+   "total_tokens": 1064,
+   "completion_tokens": 51,
+   "prompt_tokens_details": {
+    "cached_tokens": 0,
+    "image_tokens": 992
+   },
+   "reasoning_tokens": 0,
+   "completion_tokens_details": null
+  }
+ }
+}

@@ -1,0 +1,82 @@
+{
+ "mult": {
+  "content": "91",
+  "reasoning": "",
+  "tool_calls": null,
+  "usage": {
+   "prompt_tokens": 27,
+   "total_tokens": 30,
+   "completion_tokens": 3,
+   "prompt_tokens_details": null,
+   "reasoning_tokens": 0,
+   "completion_tokens_details": null
+  }
+ },
+ "haiku": {
+  "content": "Green sphere, white seam,\nBounces high in summer sun,\nA game begins.",
+  "reasoning": "",
+  "tool_calls": null,
+  "usage": {
+   "prompt_tokens": 21,
+   "total_tokens": 41,
+   "completion_tokens": 20,
+   "prompt_tokens_details": null,
+   "reasoning_tokens": 0,
+   "completion_tokens_details": null
+  }
+ },
+ "thinking": {
+  "content": "\n\n# Finding the Train's Speed\n\n## Given Information\n- Distance = 60 km\n- Time = 45 minutes\n\n## Solution\n\n**Step 1:** Convert time to hours.\n\n$$45 \\text{ minutes} = \\frac{45}{60} \\text{ hours} = \\frac{3}{4} \\text{ hours}$$\n\n**Step 2:** Calculate speed using the formula:\n\n$$\\text{Speed} = \\frac{\\text{Distance}}{\\text{Time}}$$\n\n$$\\text{Speed} = \\frac{60 \\text{ km}}{\\frac{3}{4} \\text{ hours}} = 60 \\times \\frac{4}{3} = \\boxed{80 \\text{ km/h}}$$",
+  "reasoning": "The train goes 60 km in 45 minutes.\n\nTo find the speed in km/h, I need to convert 45 minutes to hours.\n\n45 minutes = 45/60 hours = 3/4 hours\n\nSpeed = Distance / Time = 60 km / (3/4 hours) = 60 × 4/3 = 80 km/h\n",
+  "tool_calls": null,
+  "usage": {
+   "prompt_tokens": 32,
+   "total_tokens": 287,
+   "completion_tokens": 255,
+   "prompt_tokens_details": null,
+   "reasoning_tokens": 86,
+   "completion_tokens_details": {
+    "reasoning_tokens": 86
+   }
+  }
+ },
+ "tool": {
+  "content": "",
+  "reasoning": "",
+  "tool_calls": [
+   {
+    "id": "call_5048fd622c914bf7acade944",
+    "index": 0,
+    "type": "function",
+    "function": {
+     "name": "get_weather",
+     "arguments": "{\"city\": \"Paris\", \"unit\": \"celsius\"}"
+    }
+   }
+  ],
+  "usage": {
+   "prompt_tokens": 306,
+   "total_tokens": 345,
+   "completion_tokens": 39,
+   "prompt_tokens_details": null,
+   "reasoning_tokens": 0,
+   "completion_tokens_details": null
+  }
+ },
+ "image": {
+  "content": "A yellow mobile tyre fitting service van, branded with \"ATS\" and \"Euromaster\" logos, is driving on a road with a white van and a dark car visible in the background. The yellow van's license plate reads \"AJ52 UYV,\" and it features orange warning lights on its roof along with text advertising services such as tyres, batteries, exhausts, shocks, and brakes.",
+  "reasoning": "",
+  "tool_calls": null,
+  "usage": {
+   "prompt_tokens": 1013,
+   "total_tokens": 1096,
+   "completion_tokens": 83,
+   "prompt_tokens_details": {
+    "cached_tokens": 0,
+    "image_tokens": 992
+   },
+   "reasoning_tokens": 0,
+   "completion_tokens_details": null
+  }
+ }
+}
