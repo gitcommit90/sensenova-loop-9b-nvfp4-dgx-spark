@@ -1,0 +1,11 @@
+[2026-10-31 06:43:38] Memory baseline taken. mem usage=0.00 GB
+[2026-10-31 06:44:07] Load weight end. elapsed=28.47 s, type=SenseNovaLoopForConditionalGeneration, quant=modelopt_fp4, quant_algo=NVFP4, avail mem=102.32 GB, mem usage=8.76 GB.
+[2026-10-31 06:44:08] Memory baseline taken. mem usage=0.00 GB
+[2026-10-31 06:44:11] Load weight end. elapsed=3.26 s, type=Qwen3_5ForCausalLMMTP, quant=modelopt_fp4, quant_algo=NVFP4, avail mem=97.14 GB, mem usage=4.93 GB.
+[2026-10-31 06:44:13] KV Cache is allocated. dtype: torch.bfloat16, #tokens: 392685, K size: 10.49 GB, V size: 10.49 GB
+[2026-10-31 06:44:13] KV Cache is allocated. dtype: torch.bfloat16, #tokens: 392685, K size: 0.75 GB, V size: 0.75 GB
+[2026-10-31 06:44:18] Capture target verify CUDA graph end. bs=[1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16], elapsed=4.98 s, mem usage=1.44 GB, avail mem=60.15 GB.
+[2026-10-31 06:44:20] Capture draft decode CUDA graph end. elapsed=1.72 s, mem usage=0.82 GB, avail mem=59.32 GB.
+[2026-10-31 06:44:21] Capture draft extend CUDA graph end. elapsed=0.80 s, mem usage=0.28 GB, avail mem=59.05 GB.
+[2026-10-31 06:44:21] max_total_num_tokens=392685, chunked_prefill_size=8192, max_prefill_tokens=16384, max_running_requests=16, context_len=32768, available_gpu_mem=59.05 GB
+[2026-10-31 06:44:24] The server is fired up and ready to roll!

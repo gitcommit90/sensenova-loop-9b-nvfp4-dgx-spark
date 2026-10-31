@@ -1,0 +1,22 @@
+--- ../src/sglang-pr/python/sglang/srt/models/sensenova_loop.py	2026-10-30 14:12:32.015788819 -0700
++++ python/sglang/srt/models/sensenova_loop.py	2026-10-30 14:18:45.936764463 -0700
+@@ -121,11 +121,18 @@
+             )
+             if physical_layer_id not in physical_layers:
+                 layer_class = self.decoder_layer_types[layer_type]
++                # NVFP4 patch: (1) pass quant_config so ModelOpt FP4 linears are
++                # built; (2) name modules by PHYSICAL layer id so the checkpoint's
++                # exclude_modules (physical names, e.g. layers.30.linear_attn.in_proj_a)
++                # match layers 28..31, which run at execution ids 52..55.
++                physical_prefix = f"{prefix.rsplit('.', 1)[0]}.{physical_layer_id}"
+                 layer = layer_class(
+                     config=config,
+                     layer_id=execution_layer_id,
++                    quant_config=quant_config,
+                     prefix=add_prefix(
+-                        "linear_attn" if is_linear_attention else "self_attn", prefix
++                        "linear_attn" if is_linear_attention else "self_attn",
++                        physical_prefix,
+                     ),
+                     alt_stream=alt_stream,
+                     build_stages=False,

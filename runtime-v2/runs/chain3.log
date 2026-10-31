@@ -1,0 +1,12 @@
+ifeval     n= 60 acc=0.750 CI95=[0.628,0.842] err=0 trunc=3 mean_tok=245.3 94.7s
+gsm8k      n= 80 acc=0.975 CI95=[0.913,0.993] err=0 trunc=0 mean_tok=185.025 52.1s
+mmlu_pro   n= 60 acc=0.683 CI95=[0.558,0.787] err=0 trunc=6 mean_tok=558.7 126.9s
+humaneval  n= 40 acc=0.800 CI95=[0.652,0.895] err=0 trunc=0 mean_tok=193.5 27.7s
+tools      n= 20 acc=0.900 CI95=[0.699,0.972] err=0 trunc=0 mean_tok=61.6 10.7s
+vqa        n= 40 acc=0.875 CI95=[0.739,0.945] err=0 trunc=0 mean_tok=4.15 22.8s
+v2_exact eval done
+v2_fast rep1 mmlu_pro   n= 60 acc=0.717 CI95=[0.592,0.815] err=0 trunc=10 mean_tok=601.8833333333333 119.8s
+v2_fast rep2 mmlu_pro   n= 60 acc=0.650 CI95=[0.524,0.758] err=0 trunc=9 mean_tok=599.4333333333333 119.6s
+frozen rep1 mmlu_pro   n= 60 acc=0.700 CI95=[0.575,0.801] err=0 trunc=7 mean_tok=571.8 227.6s
+frozen rep2 mmlu_pro   n= 60 acc=0.650 CI95=[0.524,0.758] err=0 trunc=10 mean_tok=594.25 214.7s
+chain3 done

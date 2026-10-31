@@ -1,0 +1,5 @@
+c=  1 ok=8/8 TTFT p50=0.738s p90=0.741s decode/req p50=12.370 tok/s E2E p50=21.288s agg=12.000 tok/s out_len=256.0
+c=  2 ok=8/8 TTFT p50=0.888s p90=1.269s decode/req p50=12.166 tok/s E2E p50=21.862s agg=23.370 tok/s out_len=256.0
+c=  4 ok=8/8 TTFT p50=1.838s p90=2.783s decode/req p50=12.146 tok/s E2E p50=22.940s agg=42.017 tok/s out_len=256.0
+c=  8 ok=8/8 TTFT p50=5.025s p90=5.109s decode/req p50=12.145 tok/s E2E p50=26.021s agg=64.266 tok/s out_len=256.0
+wrote runs/final_frozen_v1/perf_matched.json

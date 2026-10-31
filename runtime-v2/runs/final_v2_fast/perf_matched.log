@@ -1,0 +1,5 @@
+c=  1 ok=8/8 TTFT p50=0.317s p90=0.338s decode/req p50=28.918 tok/s E2E p50=9.167s agg=27.842 tok/s out_len=256.0
+c=  2 ok=8/8 TTFT p50=0.407s p90=0.569s decode/req p50=28.364 tok/s E2E p50=9.505s agg=49.229 tok/s out_len=256.0
+c=  4 ok=8/8 TTFT p50=0.948s p90=1.226s decode/req p50=25.398 tok/s E2E p50=10.928s agg=87.020 tok/s out_len=256.0
+c=  8 ok=8/8 TTFT p50=2.905s p90=2.912s decode/req p50=19.793 tok/s E2E p50=15.798s agg=119.422 tok/s out_len=256.0
+wrote runs/final_v2_fast/perf_matched.json

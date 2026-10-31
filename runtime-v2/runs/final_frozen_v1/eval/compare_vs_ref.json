@@ -1,0 +1,78 @@
+{
+  "ref": "../eval/runs/sglang_nvfp4_v1_mtp",
+  "cand": "runs/final_frozen_v1/eval",
+  "tasks": {
+    "gsm8k": {
+      "n": 80,
+      "ref_acc": 0.9625,
+      "cand_acc": 0.95,
+      "delta": -0.0125,
+      "delta_boot95": [
+        -0.0375,
+        0.0
+      ],
+      "ref_only_correct": 1,
+      "cand_only_correct": 0,
+      "mcnemar_p": 1.0,
+      "ref_agreement": 0.9875,
+      "identical_output": 0.1125,
+      "mean_tokens_ref": 190.4,
+      "mean_tokens_cand": 187.6,
+      "truncated_ref": 1,
+      "truncated_cand": 1,
+      "errors_cand": 0
+    },
+    "humaneval": {
+      "n": 40,
+      "ref_acc": 0.8,
+      "cand_acc": 0.825,
+      "delta": 0.025,
+      "delta_boot95": [
+        -0.05,
+        0.1
+      ],
+      "ref_only_correct": 1,
+      "cand_only_correct": 2,
+      "mcnemar_p": 1.0,
+      "ref_agreement": 0.5,
+      "identical_output": 0.5,
+      "mean_tokens_ref": 191.3,
+      "mean_tokens_cand": 208.9,
+      "truncated_ref": 0,
+      "truncated_cand": 0,
+      "errors_cand": 0
+    },
+    "tools": {
+      "n": 20,
+      "ref_acc": 0.9,
+      "cand_acc": 0.9,
+      "delta": 0.0,
+      "delta_boot95": [
+        0.0,
+        0.0
+      ],
+      "ref_only_correct": 0,
+      "cand_only_correct": 0,
+      "mcnemar_p": 1.0,
+      "ref_agreement": 1.0,
+      "identical_output": 0.25,
+      "mean_tokens_ref": 60.2,
+      "mean_tokens_cand": 60.2,
+      "truncated_ref": 0,
+      "truncated_cand": 0,
+      "errors_cand": 0
+    }
+  },
+  "overall_micro": {
+    "n": 140,
+    "ref_acc": 0.9071428571428571,
+    "cand_acc": 0.9071428571428571,
+    "delta": 0.0,
+    "delta_boot95": [
+      -0.02857142857142857,
+      0.02857142857142857
+    ],
+    "ref_agreement": 0.85,
+    "identical_output": 0.24285714285714285
+  }
+}

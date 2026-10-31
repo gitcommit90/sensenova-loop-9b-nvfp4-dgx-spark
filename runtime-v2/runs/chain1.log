@@ -1,0 +1,18 @@
+ready after 80s
+exact_tm64k_cutlass greedy identical 10/12
+exact_tm64k_cutlass synthetic c 1 agg 26.328 req 29.233 ttft 469.897 acc 1.957
+exact_tm64k_cutlass synthetic c 4 agg 80.849 req 22.721 ttft 1116.713 acc 1.997
+exact_tm64k_cutlass code c 1 agg 33.249 req 33.467 ttft 159.326 acc 2.349
+exact_tm64k_cutlass code c 4 agg 108.574 req 28.349 ttft 232.512 acc 2.35
+ready after 70s
+full_tm64k greedy identical 2/12
+full_tm64k synthetic c 1 agg 30.963 req 31.389 ttft 320.257 acc 2.086
+full_tm64k synthetic c 4 agg 90.598 req 25.263 ttft 724.477 acc 1.968
+full_tm64k code c 1 agg 37.483 req 37.946 ttft 109.651 acc 2.456
+full_tm64k code c 4 agg 117.494 req 31.783 ttft 243.143 acc 2.371
+ready after 160s
+exact_tm64k_marlin greedy identical 3/12
+exact_tm64k_marlin synthetic c 1 agg 27.942 req 30.266 ttft 659.059 acc 2.057
+exact_tm64k_marlin synthetic c 4 agg 77.439 req 23.136 ttft 2213.987 acc 2.086
+exact_tm64k_marlin code c 1 agg 33.833 req 34.436 ttft 159.247 acc 2.351
+exact_tm64k_marlin code c 4 agg 107.749 req 28.065 ttft 326.778 acc 2.329

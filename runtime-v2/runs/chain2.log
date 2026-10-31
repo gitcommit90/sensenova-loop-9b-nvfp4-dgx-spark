@@ -1,0 +1,10 @@
+ready after 70s
+full_mtp synthetic c 8 agg 130.2 req 19.7 ttft 1293 acc 1.9536215068338272
+full_mtp synthetic c 16 agg 171.4 req 14.9 ttft 5097 acc 1.8842565959781015
+full_mtp code c 8 agg 198.4 req 26.1 ttft 351 acc 2.402667027337142
+full_mtp code c 16 agg 295.0 req 20.0 ttft 425 acc 2.3972806387936223
+ready after 65s
+full_nomtp synthetic c 8 agg 129.4 req 18.6 ttft 2080 acc None
+full_nomtp synthetic c 16 agg 194.3 req 15.6 ttft 4685 acc None
+full_nomtp code c 8 agg 150.6 req 19.2 ttft 320 acc None
+full_nomtp code c 16 agg 258.0 req 16.6 ttft 466 acc None

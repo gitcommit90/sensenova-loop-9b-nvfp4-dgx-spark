@@ -1,0 +1,11 @@
+frozen startup: ready after 91s
+frozen launch->ready 92s
+done runs/final_frozen_v1
+frozen done
+v2fast startup: ready after 75s
+v2fast launch->ready 77s
+done runs/final_v2_fast
+v2_fast done
+v2exact startup: ready after 76s
+done runs/final_v2_exact
+v2_exact done

@@ -15,3 +15,9 @@ Quality panels show task scores and paired-bootstrap 95% intervals from the orig
 These intervals reflect this small item set, not run-to-run throughput variation or full-benchmark accuracy.
 
 The originals are 300-DPI PNG plus vector PDF and SVG. No new GPU benchmarks were run to make these figures.
+
+## Runtime v2 final figures
+
+`python figures/plot_runtime_v2.py` reads only `runtime-v2/runs/final_*/` JSONs.
+Original v1 figures remain unchanged. New charts separate final matched runs from screening, and
+show the first complete quality runs and paired intervals, including fast-profile regressions.

@@ -1,0 +1,29 @@
+--- src/sglang-pr/python/sglang/srt/configs/model_config.py	2026-10-30 14:12:31.930788808 -0700
++++ overlay/python/sglang/srt/configs/model_config.py	2026-10-30 14:31:57.333705000 -0700
+@@ -1166,6 +1166,26 @@
+             self.hf_config.architectures[0] = "Qwen3MoeForCausalLMMTP"
+             self.hf_config.num_nextn_predict_layers = 1
+ 
++        if (
++            is_draft_model
++            and self.hf_config.architectures[0]
++            == "SenseNovaLoopForConditionalGeneration"
++        ):
++            # MTP patch: the bundled mtp.* head is a plain Qwen3.5 MTP layer (one
++            # full-attention layer, BF16). Shrink the looped execution layout to
++            # that single layer; deep-copy so the target keeps its 56-slot plan.
++            self.hf_config = copy.deepcopy(self.hf_config)
++            self.hf_text_config = get_hf_text_config(self.hf_config)
++            text_config = self.hf_text_config
++            text_config.num_hidden_layers = 1
++            text_config.layer_types = ["full_attention"]
++            text_config.full_attention_interval = 1
++            text_config.execution_plan = (0,)
++            text_config.mhc = None
++            text_config.num_nextn_predict_layers = 1
++            self.hf_config.num_nextn_predict_layers = 1
++            self.hf_config.architectures[0] = "Qwen3_5ForCausalLMMTP"
++
+         if is_draft_model and self.hf_config.architectures[0] in [
+             "Qwen3_5ForConditionalGeneration",
+             "Qwen3_5MoeForConditionalGeneration",

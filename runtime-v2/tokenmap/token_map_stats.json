@@ -1,0 +1,19 @@
+{
+ "tokens_per_source": {
+  "oasst2": 16013383,
+  "mbpp": 28619,
+  "gsm8k": 1377570,
+  "glaive": 20915137
+ },
+ "distinct_tokens_seen": 163430,
+ "n_special": 33,
+ "vocab": 248077,
+ "hot_32k": {
+  "n": 32768,
+  "weighted_coverage_of_corpus": 0.97266
+ },
+ "hot_64k": {
+  "n": 65536,
+  "weighted_coverage_of_corpus": 0.99124
+ }
+}

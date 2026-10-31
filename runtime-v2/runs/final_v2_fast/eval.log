@@ -1,0 +1,7 @@
+ifeval     n= 60 acc=0.817 CI95=[0.701,0.894] err=0 trunc=5 mean_tok=293.18333333333334 113.3s
+gsm8k      n= 80 acc=0.963 CI95=[0.895,0.987] err=0 trunc=1 mean_tok=187.5625 48.6s
+mmlu_pro   n= 60 acc=0.583 CI95=[0.457,0.699] err=0 trunc=14 mean_tok=617.6333333333333 121.4s
+humaneval  n= 40 acc=0.775 CI95=[0.625,0.877] err=0 trunc=0 mean_tok=181.9 23.9s
+tools      n= 20 acc=0.900 CI95=[0.699,0.972] err=0 trunc=0 mean_tok=66.25 8.0s
+vqa        n= 40 acc=0.925 CI95=[0.801,0.974] err=0 trunc=0 mean_tok=4.05 16.8s
+wrote runs/final_v2_fast/eval/summary.json

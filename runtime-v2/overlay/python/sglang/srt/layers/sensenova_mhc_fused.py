@@ -1,0 +1,462 @@
+"""Fused Triton kernels for the SenseNova Loop mHC router (streams == 2).
+
+The reference router (SenseNovaMHCRouter._forward_reference) turns its FP32
+logits [T, 8] into
+
+    pre  = sigmoid(l[:, 0:2])
+    post = 2 * sigmoid(l[:, 2:4])
+    mix  = exp(Sinkhorn^iterations(l[:, 4:8].view(T, 2, 2)))   (log space)
+
+with torch.logsumexp, i.e. ~300 tiny CUDA kernels per call. ``mhc_coeffs``
+does the same in one kernel, replicating the eager op order exactly:
+
+  * torch.logsumexp(x, dim): m = amax(x) (NaN-propagating), m := 0 where
+    |m| == inf, r = log(sum(exp(x - m))) + m.  A 2-element fp32 sum is a
+    single correctly rounded add, so its order cannot differ.
+  * torch.sigmoid (CUDA, fp32): 1 / (1 + exp(-x)) with IEEE division.
+  * exp / log / division use the correctly rounded libdevice routines that
+    nvcc uses for expf / logf / '/' in ATen (no ex2.approx / lg2.approx /
+    div.full), so results are bitwise identical to the eager path.
+
+The iteration count is a constexpr taken from the model config.
+"""
+
+import torch
+import triton
+import triton.language as tl
+from triton.language.extra import libdevice
+
+
+@triton.jit
+def _lse2(x, y):
+    # torch.logsumexp over two elements.
+    m = tl.maximum(x, y, propagate_nan=tl.PropagateNan.ALL)
+    m = tl.where(tl.abs(m) == float("inf"), 0.0, m)
+    s = libdevice.exp(x - m) + libdevice.exp(y - m)
+    return libdevice.log(s) + m
+
+
+@triton.jit
+def _sigmoid(x):
+    # ATen sigmoid_kernel_cuda: one / (one + std::exp(-a)) in opmath (fp32).
+    return libdevice.div_rn(1.0, 1.0 + libdevice.exp(-x))
+
+
+@triton.jit
+def _mhc_coeffs_kernel(
+    logits_ptr,
+    pre_ptr,
+    post_ptr,
+    mix_ptr,
+    T,
+    stride_t,
+    stride_k,
+    ITERS: tl.constexpr,
+    BLOCK_T: tl.constexpr,
+):
+    pid = tl.program_id(0)
+    rows = pid * BLOCK_T + tl.arange(0, BLOCK_T)
+    mask = rows < T
+    base = logits_ptr + rows.to(tl.int64) * stride_t
+    l0 = tl.load(base + 0 * stride_k, mask=mask, other=0.0)
+    l1 = tl.load(base + 1 * stride_k, mask=mask, other=0.0)
+    l2 = tl.load(base + 2 * stride_k, mask=mask, other=0.0)
+    l3 = tl.load(base + 3 * stride_k, mask=mask, other=0.0)
+    # mix[t] = [[a, b], [c, d]]; dim -1 = rows (a,b),(c,d); dim -2 = cols (a,c),(b,d)
+    a = tl.load(base + 4 * stride_k, mask=mask, other=0.0)
+    b = tl.load(base + 5 * stride_k, mask=mask, other=0.0)
+    c = tl.load(base + 6 * stride_k, mask=mask, other=0.0)
+    d = tl.load(base + 7 * stride_k, mask=mask, other=0.0)
+
+    for _ in tl.static_range(ITERS):
+        r0 = _lse2(a, b)
+        r1 = _lse2(c, d)
+        a = a - r0
+        b = b - r0
+        c = c - r1
+        d = d - r1
+        c0 = _lse2(a, c)
+        c1 = _lse2(b, d)
+        a = a - c0
+        c = c - c0
+        b = b - c1
+        d = d - c1
+
+    out2 = rows.to(tl.int64) * 2
+    tl.store(pre_ptr + out2, _sigmoid(l0), mask=mask)
+    tl.store(pre_ptr + out2 + 1, _sigmoid(l1), mask=mask)
+    tl.store(post_ptr + out2, 2.0 * _sigmoid(l2), mask=mask)
+    tl.store(post_ptr + out2 + 1, 2.0 * _sigmoid(l3), mask=mask)
+    out4 = rows.to(tl.int64) * 4
+    tl.store(mix_ptr + out4 + 0, libdevice.exp(a), mask=mask)
+    tl.store(mix_ptr + out4 + 1, libdevice.exp(b), mask=mask)
+    tl.store(mix_ptr + out4 + 2, libdevice.exp(c), mask=mask)
+    tl.store(mix_ptr + out4 + 3, libdevice.exp(d), mask=mask)
+
+
+def supported(streams: int, fixed_identity: bool) -> bool:
+    return streams == 2 and not fixed_identity
+
+
+def mhc_coeffs(logits: torch.Tensor, iterations: int):
+    """FP32 logits [..., 8] -> (pre [..., 2], post [..., 2], mix [..., 2, 2]),
+    all FP32 and contiguous, bitwise equal to the reference router."""
+    assert logits.dtype == torch.float32 and logits.shape[-1] == 8, logits.shape
+    lead = logits.shape[:-1]
+    flat = logits if logits.dim() == 2 else logits.reshape(-1, 8)
+    T = flat.shape[0]
+    pre = torch.empty((*lead, 2), device=logits.device, dtype=torch.float32)
+    post = torch.empty((*lead, 2), device=logits.device, dtype=torch.float32)
+    mix = torch.empty((*lead, 2, 2), device=logits.device, dtype=torch.float32)
+    if T == 0:
+        return pre, post, mix
+    BLOCK_T = 128 if T >= 128 else max(32, triton.next_power_of_2(T))
+    grid = (triton.cdiv(T, BLOCK_T),)
+    _mhc_coeffs_kernel[grid](
+        flat,
+        pre,
+        post,
+        mix,
+        T,
+        flat.stride(0),
+        flat.stride(1),
+        ITERS=int(iterations),
+        BLOCK_T=BLOCK_T,
+        num_warps=max(1, min(4, BLOCK_T // 32)),
+        # ATen keeps denormals; Triton's default links libdevice in FTZ mode,
+        # which would flush exp() / sigmoid() results below 2**-126 to zero.
+        enable_reflect_ftz=False,
+    )
+    return pre, post, mix
+
+
+# ---------------------------------------------------------------------------
+# Router tail + pre-branch in one kernel, and the merge in one kernel.
+#
+# bf16 bmm with K == 2 (cuBLAS, fp32 accumulate): both bf16 x bf16 products are
+# exact in fp32, so the result is round_bf16(round_fp32(p0 + p1)) whatever the
+# accumulation order or FMA use. Elementwise bf16 ops in ATen compute in fp32
+# and round once to bf16. The kernels below reproduce exactly that.
+# ---------------------------------------------------------------------------
+
+
+@triton.jit
+def _bf16(x):
+    # torch .to(torch.bfloat16) (round to nearest even), read back as fp32.
+    return x.to(tl.bfloat16).to(tl.float32)
+
+
+@triton.jit
+def _mhc_pre_kernel(
+    logits_ptr,
+    hs_ptr,
+    branch_ptr,
+    pre_ptr,
+    post_ptr,
+    mix_ptr,
+    H,
+    stride_lt,
+    stride_lk,
+    stride_ht,
+    stride_bt,
+    ITERS: tl.constexpr,
+    BLOCK_H: tl.constexpr,
+):
+    t = tl.program_id(0).to(tl.int64)
+    base = logits_ptr + t * stride_lt
+    l0 = tl.load(base + 0 * stride_lk)
+    l1 = tl.load(base + 1 * stride_lk)
+    l2 = tl.load(base + 2 * stride_lk)
+    l3 = tl.load(base + 3 * stride_lk)
+    a = tl.load(base + 4 * stride_lk)
+    b = tl.load(base + 5 * stride_lk)
+    c = tl.load(base + 6 * stride_lk)
+    d = tl.load(base + 7 * stride_lk)
+    for _ in tl.static_range(ITERS):
+        r0 = _lse2(a, b)
+        r1 = _lse2(c, d)
+        a = a - r0
+        b = b - r0
+        c = c - r1
+        d = d - r1
+        c0 = _lse2(a, c)
+        c1 = _lse2(b, d)
+        a = a - c0
+        c = c - c0
+        b = b - c1
+        d = d - c1
+    p0 = _sigmoid(l0)
+    p1 = _sigmoid(l1)
+    tl.store(pre_ptr + t * 2, p0)
+    tl.store(pre_ptr + t * 2 + 1, p1)
+    tl.store(post_ptr + t * 2, 2.0 * _sigmoid(l2))
+    tl.store(post_ptr + t * 2 + 1, 2.0 * _sigmoid(l3))
+    tl.store(mix_ptr + t * 4 + 0, libdevice.exp(a))
+    tl.store(mix_ptr + t * 4 + 1, libdevice.exp(b))
+    tl.store(mix_ptr + t * 4 + 2, libdevice.exp(c))
+    tl.store(mix_ptr + t * 4 + 3, libdevice.exp(d))
+
+    # branch = bmm(pre.to(bf16)[t, None, :], hs[t].view(2, H))
+    w0 = _bf16(p0)
+    w1 = _bf16(p1)
+    offs = tl.arange(0, BLOCK_H)
+    row = hs_ptr + t * stride_ht
+    out = branch_ptr + t * stride_bt
+    for h in range(0, H, BLOCK_H):
+        m = h + offs < H
+        x0 = tl.load(row + h + offs, mask=m, other=0.0).to(tl.float32)
+        x1 = tl.load(row + H + h + offs, mask=m, other=0.0).to(tl.float32)
+        tl.store(out + h + offs, (w0 * x0 + w1 * x1).to(tl.bfloat16), mask=m)
+
+
+@triton.jit
+def _mhc_merge_kernel(
+    branch_ptr,
+    res_ptr,
+    mix_ptr,
+    post_ptr,
+    out_ptr,
+    H,
+    stride_bt,
+    stride_rt,
+    stride_ot,
+    stride_mt,
+    stride_mi,
+    stride_mj,
+    stride_pt,
+    stride_pk,
+    BLOCK_H: tl.constexpr,
+):
+    t = tl.program_id(0).to(tl.int64)
+    hb = tl.program_id(1)
+    mb = mix_ptr + t * stride_mt
+    m00 = _bf16(tl.load(mb))
+    m01 = _bf16(tl.load(mb + stride_mj))
+    m10 = _bf16(tl.load(mb + stride_mi))
+    m11 = _bf16(tl.load(mb + stride_mi + stride_mj))
+    q0 = _bf16(tl.load(post_ptr + t * stride_pt))
+    q1 = _bf16(tl.load(post_ptr + t * stride_pt + stride_pk))
+    offs = hb * BLOCK_H + tl.arange(0, BLOCK_H)
+    m = offs < H
+    row = res_ptr + t * stride_rt
+    r0 = tl.load(row + offs, mask=m, other=0.0).to(tl.float32)
+    r1 = tl.load(row + H + offs, mask=m, other=0.0).to(tl.float32)
+    br = tl.load(branch_ptr + t * stride_bt + offs, mask=m, other=0.0).to(tl.float32)
+    # mixed = bmm(mix.bf16, residual); update = post.bf16[:, :, None] * branch[:, None]
+    o0 = _bf16(m00 * r0 + m01 * r1) + _bf16(q0 * br)
+    o1 = _bf16(m10 * r0 + m11 * r1) + _bf16(q1 * br)
+    out = out_ptr + t * stride_ot
+    tl.store(out + offs, o0.to(tl.bfloat16), mask=m)
+    tl.store(out + H + offs, o1.to(tl.bfloat16), mask=m)
+
+
+def mhc_pre(logits: torch.Tensor, hidden_states: torch.Tensor, iterations: int):
+    """Router tail for streams == 2: FP32 logits [T, 8] and BF16 hidden_states
+    [T, 2H] -> (branch [T, H] bf16, pre [T, 2], post [T, 2], mix [T, 2, 2])."""
+    assert logits.dim() == 2 and logits.shape[1] == 8 and logits.dtype == torch.float32
+    assert hidden_states.dim() == 2 and hidden_states.dtype == torch.bfloat16
+    T, H2 = hidden_states.shape
+    H = H2 // 2
+    if hidden_states.stride(1) != 1:
+        hidden_states = hidden_states.contiguous()
+    dev = logits.device
+    branch = torch.empty((T, H), device=dev, dtype=hidden_states.dtype)
+    pre = torch.empty((T, 2), device=dev, dtype=torch.float32)
+    post = torch.empty((T, 2), device=dev, dtype=torch.float32)
+    mix = torch.empty((T, 2, 2), device=dev, dtype=torch.float32)
+    if T == 0:
+        return branch, pre, post, mix
+    _mhc_pre_kernel[(T,)](
+        logits,
+        hidden_states,
+        branch,
+        pre,
+        post,
+        mix,
+        H,
+        logits.stride(0),
+        logits.stride(1),
+        hidden_states.stride(0),
+        branch.stride(0),
+        ITERS=int(iterations),
+        BLOCK_H=1024,
+        num_warps=4,
+        enable_reflect_ftz=False,
+    )
+    return branch, pre, post, mix
+
+
+def mhc_merge(branch, residual, mix, post):
+    """SenseNovaMHCRouter.merge for streams == 2 in one kernel (bitwise equal)."""
+    T, H2 = residual.shape
+    H = H2 // 2
+    if residual.stride(1) != 1:
+        residual = residual.contiguous()
+    if branch.stride(-1) != 1:
+        branch = branch.contiguous()
+    out = torch.empty((T, H2), device=residual.device, dtype=residual.dtype)
+    if T == 0:
+        return out
+    BLOCK_H = 1024
+    _mhc_merge_kernel[(T, triton.cdiv(H, BLOCK_H))](
+        branch,
+        residual,
+        mix,
+        post,
+        out,
+        H,
+        branch.stride(0),
+        residual.stride(0),
+        out.stride(0),
+        mix.stride(0),
+        mix.stride(1),
+        mix.stride(2),
+        post.stride(0),
+        post.stride(1),
+        BLOCK_H=BLOCK_H,
+        num_warps=4,
+        enable_reflect_ftz=False,
+        # Otherwise the bf16-rounded update product is contracted into an fma
+        # with the following add and its rounding is lost (not bitwise).
+        enable_fp_fusion=False,
+    )
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Whole router forward in one kernel: FP32 RMS-normalize + 8 FP32 dot products
+# + bias + sigmoid / Sinkhorn + pre-branch. One program per token row.
+#
+# NOT bitwise equal to the eager path: the sum of squares and the 8192-long dot
+# products are FP32 but summed in a different order than torch.mean / cuBLAS
+# (which itself changes order with M). Everything after the logits is exact.
+# ---------------------------------------------------------------------------
+
+
+@triton.jit
+def _pick(v, idx, j: tl.constexpr):
+    return tl.sum(tl.where(idx == j, v, 0.0), axis=0)
+
+
+@triton.jit
+def _mhc_router_kernel(
+    hs_ptr,
+    w_ptr,
+    bias_ptr,
+    branch_ptr,
+    pre_ptr,
+    post_ptr,
+    mix_ptr,
+    stride_ht,
+    stride_bt,
+    H: tl.constexpr,
+    EPS: tl.constexpr,
+    ITERS: tl.constexpr,
+    BLOCK_K: tl.constexpr,
+):
+    K: tl.constexpr = 2 * H
+    t = tl.program_id(0).to(tl.int64)
+    row = hs_ptr + t * stride_ht
+    offs = tl.arange(0, BLOCK_K)
+
+    # mean(x^2): squares of bf16 values are exact in fp32.
+    sq = tl.zeros([BLOCK_K], dtype=tl.float32)
+    for k in range(0, K, BLOCK_K):
+        x = tl.load(row + k + offs).to(tl.float32)
+        sq += x * x
+    ms = libdevice.div_rn(tl.sum(sq, axis=0), K * 1.0)
+    r = libdevice.rsqrt(ms + EPS)
+
+    # logits[j] = sum_k (x_k * r) * W[j, k] + b[j]   (normalized rounded as in eager)
+    jj = tl.arange(0, 8)
+    acc = tl.zeros([8, BLOCK_K], dtype=tl.float32)
+    for k in range(0, K, BLOCK_K):
+        n = tl.load(row + k + offs).to(tl.float32) * r
+        w = tl.load(w_ptr + jj[:, None] * K + k + offs[None, :])
+        acc += n[None, :] * w
+    logits = tl.sum(acc, axis=1) + tl.load(bias_ptr + jj)
+    l0 = _pick(logits, jj, 0)
+    l1 = _pick(logits, jj, 1)
+    l2 = _pick(logits, jj, 2)
+    l3 = _pick(logits, jj, 3)
+    a = _pick(logits, jj, 4)
+    b = _pick(logits, jj, 5)
+    c = _pick(logits, jj, 6)
+    d = _pick(logits, jj, 7)
+
+    for _ in tl.static_range(ITERS):
+        r0 = _lse2(a, b)
+        r1 = _lse2(c, d)
+        a = a - r0
+        b = b - r0
+        c = c - r1
+        d = d - r1
+        c0 = _lse2(a, c)
+        c1 = _lse2(b, d)
+        a = a - c0
+        c = c - c0
+        b = b - c1
+        d = d - c1
+    p0 = _sigmoid(l0)
+    p1 = _sigmoid(l1)
+    tl.store(pre_ptr + t * 2, p0)
+    tl.store(pre_ptr + t * 2 + 1, p1)
+    tl.store(post_ptr + t * 2, 2.0 * _sigmoid(l2))
+    tl.store(post_ptr + t * 2 + 1, 2.0 * _sigmoid(l3))
+    tl.store(mix_ptr + t * 4 + 0, libdevice.exp(a))
+    tl.store(mix_ptr + t * 4 + 1, libdevice.exp(b))
+    tl.store(mix_ptr + t * 4 + 2, libdevice.exp(c))
+    tl.store(mix_ptr + t * 4 + 3, libdevice.exp(d))
+
+    w0 = _bf16(p0)
+    w1 = _bf16(p1)
+    out = branch_ptr + t * stride_bt
+    for h in range(0, H, BLOCK_K):
+        x0 = tl.load(row + h + offs).to(tl.float32)
+        x1 = tl.load(row + H + h + offs).to(tl.float32)
+        tl.store(out + h + offs, (w0 * x0 + w1 * x1).to(tl.bfloat16))
+
+
+def mhc_router(
+    hidden_states: torch.Tensor,
+    weight: torch.Tensor,
+    bias: torch.Tensor,
+    iterations: int,
+    eps: float = 1e-6,
+):
+    """Whole streams == 2 router forward: BF16 hidden_states [T, 2H] ->
+    (branch [T, H] bf16, pre [T, 2], post [T, 2], mix [T, 2, 2])."""
+    T, K = hidden_states.shape
+    H = K // 2
+    assert weight.shape == (8, K) and weight.dtype == torch.float32
+    assert hidden_states.dtype == torch.bfloat16
+    BLOCK_K = 1024
+    assert H % BLOCK_K == 0, H
+    if hidden_states.stride(1) != 1:
+        hidden_states = hidden_states.contiguous()
+    weight = weight.contiguous()
+    dev = hidden_states.device
+    branch = torch.empty((T, H), device=dev, dtype=hidden_states.dtype)
+    pre = torch.empty((T, 2), device=dev, dtype=torch.float32)
+    post = torch.empty((T, 2), device=dev, dtype=torch.float32)
+    mix = torch.empty((T, 2, 2), device=dev, dtype=torch.float32)
+    if T == 0:
+        return branch, pre, post, mix
+    _mhc_router_kernel[(T,)](
+        hidden_states,
+        weight,
+        bias,
+        branch,
+        pre,
+        post,
+        mix,
+        hidden_states.stride(0),
+        branch.stride(0),
+        H=H,
+        EPS=eps,
+        ITERS=int(iterations),
+        BLOCK_K=BLOCK_K,
+        num_warps=8,
+        enable_reflect_ftz=False,
+    )
+    return branch, pre, post, mix

@@ -1,0 +1,6 @@
+task          n    ref   cand   delta            boot95  r-/c+ mcnemar  agree  ident       tok r/c
+gsm8k        80  0.963  0.963  +0.000 [+0.000,+0.000]    0/0   1.000  1.000  0.087   190.4/187.6
+humaneval    40  0.800  0.775  -0.025 [-0.100,+0.050]    2/1   1.000  0.425  0.425   191.3/181.9
+tools        20  0.900  0.900  +0.000 [-0.150,+0.150]    1/1   1.000  0.850  0.000     60.2/66.2
+ALL(micro)  140  0.907  0.900  -0.007 [-0.036,+0.021]      /     nan  0.814  0.171     None/None
+wrote runs/final_v2_fast/eval/compare_vs_ref.json

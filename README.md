@@ -33,21 +33,73 @@ so MTP speculative decoding works, validated on an NVIDIA DGX Spark (GB10, SM121
 - **Weights and complete model files:** [https://huggingface.co/gitcommit90/SenseNova-Loop-9B-Preview-NVFP4](https://huggingface.co/gitcommit90/SenseNova-Loop-9B-Preview-NVFP4)
 - **Runtime, quantization recipe, evaluation harness and charts:** [https://github.com/gitcommit90/sensenova-loop-9b-nvfp4-dgx-spark](https://github.com/gitcommit90/sensenova-loop-9b-nvfp4-dgx-spark)
 
-This is the **October 30 functional-release baseline**, not the later speed-optimization work.
+**Updated October 31: runtime v2 is included below, alongside the preserved October 30 functional-release baseline.**
 Weights live on Hugging Face; the GitHub companion does not duplicate the 9.38 GB checkpoint.
 
-## Measured results at a glance
+## Runtime v2 — final optimization results (October 31)
 
-[![Measured single-user speed, TTFT and aggregate concurrency throughput](figures/performance-summary.png)](figures/performance-summary.pdf)
+**Same 9.38 GB NVFP4 weights; new runtime kernels and a smaller MTP draft vocabulary.**
+No retraining, recalibration, reduced loop passes, or changed KV/state precision. MTP is supported in all profiles.
+The target still verifies over the full vocabulary. Only greedy decoding was evaluated.
 
-[![Small-suite quality preservation and paired uncertainty](figures/quality-summary.png)](figures/quality-summary.pdf)
+[![Final runtime v2 single-user decode, concurrency and TTFT](figures/runtime-v2-performance.png)](figures/runtime-v2-performance.pdf)
 
-Figures are regenerated directly from the checked-in evaluation JSONs with
-[`figures/plot_benchmarks.py`](figures/plot_benchmarks.py), following the publication-figure conventions of
-[figures4papers](https://github.com/ChenLiu-1996/figures4papers).
-PNG previews, vector PDF/SVG exports, and plotting dependencies are included.
-**Aggregate throughput is not per-user decode speed.** Quality scores are small-subset regression measurements,
-not full-benchmark scores or a comparison against Qwen.
+| Final matched measurement | Frozen NVFP4 + MTP | v2 exact + MTP | v2 fast + MTP |
+| --- | ---: | ---: | ---: |
+| Single-request decode, ~1K input (tok/s, median) | 12.4 | **27.3** | **28.9** |
+| Single-request code decode, ~90 input (tok/s, median) | 16.0 | **33.4** | **35.9** |
+| Single-request document decode, ~4K input (tok/s, median) | 14.3 | **30.6** | **33.3** |
+| Eight-request aggregate, ~1K input (tok/s) | 64.3 | **117.2** | **119.4** |
+| Eight-request code aggregate (tok/s) | 97.4 | **172.7** | **196.7** |
+| Single-request TTFT, ~1K input (seconds, median) | 0.74 | 0.51 | **0.32** |
+
+Exactly 256 output tokens; unique prompts; no prefix-cache hits; zero errors in these final performance runs.
+**Aggregate throughput is combined across requests, not each user's speed.** These are the final matched runs,
+not the higher preliminary screening peaks. Full sample counts, token lengths and raw measurements:
+[`runtime-v2/RESULTS.md`](runtime-v2/RESULTS.md) and [`runtime-v2/runs/`](runtime-v2/runs/).
+
+### Which profile should I use?
+
+- **`MHC_MODE=exact` — recommended conservative profile:** fused Sinkhorn with reference operation order;
+  cuBLAS routing projection and reference merge retained. Reference routing math matched bitwise in differential
+  tests; the 12-case final feature check matched the frozen output. This is not a universal promise of identical
+  generations under every batch/hardware configuration.
+- **`MHC_MODE=fast` — faster, numerically different:** also fuses routing projection/merge. FP32 is preserved,
+  but summation order changes and greedy text can diverge. Choose this explicitly if that trade-off suits you.
+  The supplied v2 launcher's inherited default is `fast`; commands below explicitly select `exact`.
+- **`runtime/` — frozen v1:** preserved for reproduction and rollback. Both v2 profiles use the same pinned image.
+
+### Quality: report the losses and uncertainty, not just the speedup
+
+[![Runtime v2 quality results and paired uncertainty](figures/runtime-v2-quality.png)](figures/runtime-v2-quality.pdf)
+
+On the same 300-item suite, frozen v1 scored **251/300 (83.7%)**, v2 exact **249/300 (83.0%)**,
+and v2 fast **247/300 (82.3%)**. Paired-bootstrap 95% delta intervals vs frozen:
+exact **−0.67 pp [−3.00, +1.67]**; fast **−1.33 pp [−4.33, +1.67]**.
+These small, noisy subsets do **not** establish losslessness or full-benchmark equivalence.
+
+**Fast's first MMLU-Pro run fell from 70.0% to 58.3% (−11.7 pp)** and truncations rose from 14 to 20 across the suite.
+Those exceed the original first-run per-task and ref+3 truncation tripwires. Fast MMLU-Pro reruns scored 71.7% and
+65.0%; frozen reruns scored 70.0% and 65.0%. All runs are retained. Variability and the token budget complicate
+interpretation; they do not erase the first-run regression. See [`RESULTS.md`](runtime-v2/RESULTS.md).
+
+The improvements come from **fused FP32 mHC/Sinkhorn kernels** and a **65,536-token MTP draft shortlist** selected
+from training-split corpora. The draft is restricted; the verifying target is not. The exact kernel preserves all
+20 configured normalization iterations. No learned model weights changed.
+
+Source, numerical tests, optimized launcher, token-map builder, and experiment ledger are in
+[`runtime-v2/`](runtime-v2/). Numerical tests and final feature/quality/performance results are included.
+Figures follow [figures4papers](https://github.com/ChenLiu-1996/figures4papers), with
+[`figures/plot_runtime_v2.py`](figures/plot_runtime_v2.py), PNG previews and vector PDF/SVG exports.
+
+## Original quantization baseline (October 30; retained)
+
+[![Original BF16 versus NVFP4 performance baseline](figures/performance-summary.png)](figures/performance-summary.pdf)
+
+[![Original quantization quality comparison](figures/quality-summary.png)](figures/quality-summary.pdf)
+
+These older figures compare BF16 to the **original v1** NVFP4 runtime, not runtime v2.
+Their source script remains [`figures/plot_benchmarks.py`](figures/plot_benchmarks.py).
 
 ## Provenance
 | Item | Value |
@@ -65,6 +117,7 @@ not full-benchmark scores or a comparison against Qwen.
 - `mtp.*` (MTP head) is included in `model.safetensors` as BF16 (upstream shipped it as a separate FP32 `mtp.safetensors`).
 - Tokenizer, processor configs, chat template, generation config and `modeling_sensenova_loop.py` are byte-identical
   to the pinned upstream revision (see `SHA256SUMS`).
+- `runtime-v2/` adds fused routing kernels and a 64K draft token map, with no checkpoint weight changes.
 - `runtime/` contains SGLang source files from the open SGLang PR
   [#47281](https://github.com/sgl-project/sglang/pull/47281) (Apache-2.0, sgl-project) plus two small patches of ours
   (`runtime/patches/`), needed to serve this checkpoint.
@@ -125,7 +178,7 @@ Tool calls: 100 % well-formed for both. 0 request errors. Truncations at the max
 With MTP enabled the NVFP4 model scored GSM8K 96.3 % (n=80), HumanEval 80.0 % (n=40), tools 90 % (n=20); MTP is
 lossless in principle at temperature 0, small differences come from batch-dependent numerics.
 
-## Performance (DGX Spark GB10, SGLang, same flags for all rows)
+## Original v1 performance (DGX Spark GB10, SGLang, same flags for all rows)
 Prompt 1,051 tokens, exactly 256 output tokens (`ignore_eos`), greedy, unique prompts (no prefix-cache hits),
 `--mem-fraction-static 0.45`, CUDA graphs on. No MTP rows: 16 requests per level; MTP rows: 8 requests per level.
 Aggregate output tokens/s (per-request decode tok/s p50 in parentheses):
@@ -171,13 +224,13 @@ python3 -m venv .venv-download
 .venv-download/bin/hf download gitcommit90/SenseNova-Loop-9B-Preview-NVFP4 --local-dir models/SenseNova-Loop-9B-Preview-NVFP4
 # Verify the downloaded release before serving:
 (cd models/SenseNova-Loop-9B-Preview-NVFP4 && sha256sum -c SHA256SUMS)
-bash runtime/serve_sglang.sh models/SenseNova-Loop-9B-Preview-NVFP4
+MHC_MODE=exact bash runtime-v2/serve_sglang.sh models/SenseNova-Loop-9B-Preview-NVFP4
 ```
 
 **From a complete Hugging Face snapshot** containing `model.safetensors`:
 ```bash
 # from the snapshot root
-bash runtime/serve_sglang.sh .                 # NVFP4 W4A4 + MTP (NEXTN, 3 steps), 127.0.0.1:30080
+MHC_MODE=exact bash runtime-v2/serve_sglang.sh . # conservative optimized W4A4 + MTP, 127.0.0.1:30080
 curl -s http://127.0.0.1:30080/v1/models
 python3 runtime/probe.py http://127.0.0.1:30080/v1 sensenova-loop-9b-nvfp4 [image.jpg]   # text / thinking / tool / image smoke test
 # options: --no-mtp ; W4A16: SGLANG_DISABLE_SILU_FP4_QUANT_FUSION=1 runtime/serve_sglang.sh . --fp4-gemm-backend marlin
@@ -185,14 +238,24 @@ python3 runtime/probe.py http://127.0.0.1:30080/v1 sensenova-loop-9b-nvfp4 [imag
 OpenAI-compatible API; thinking is toggled with `chat_template_kwargs: {"enable_thinking": false|true}`; tools use the
 `qwen3_coder` parser (the model's XML `<tool_call><function=…>` format).
 
+### Profile selection and rollback
+```bash
+MHC_MODE=fast bash runtime-v2/serve_sglang.sh /path/to/model  # fastest; see numerical/quality caveats
+MHC_MODE=exact bash runtime-v2/serve_sglang.sh /path/to/model # conservative optimized
+bash runtime/serve_sglang.sh /path/to/model                 # frozen v1 rollback
+```
+The launcher replaces only its named model container. No extra quantization step is required.
+Benchmark reproduction is documented in [`runtime-v2/bench/README.md`](runtime-v2/bench/README.md).
+
 ## Limitations
 - Upstream is a *Preview* model; all upstream limitations and intended-use terms apply.
 - The serving path depends on an **unmerged** SGLang PR plus our patches, pinned to one nightly image; it was tested
   only on GB10. Pipeline/tensor parallelism and other GPUs were not tested.
 - Evaluation is small (300 items, thinking off, contexts ≤ ~3 K tokens). Long context (> 32 K), video input, thinking-mode
   quality at scale and non-English quality were not evaluated. Only greedy decoding was benchmarked.
-- The mHC Sinkhorn routing runs as many small FP32 PyTorch kernels and dominates a large share of GPU time in both BF16 and
-  NVFP4; a fused kernel would likely improve speed further (not attempted).
+- The frozen v1 mHC path uses many small FP32 kernels. Runtime v2 fuses those operations; the remaining profile is more GEMM/output-head bound.
+- Runtime v2 fast is not bitwise equivalent to v1 and did not pass every original first-run quality tripwire. Exact is the conservative option.
+- The draft vocabulary shortlist was built from training corpora; no broad sampling-equivalence or full-context quality study was performed.
 - In this SGLang build, `--fp4-gemm-backend marlin` crashes unless `SGLANG_DISABLE_SILU_FP4_QUANT_FUSION=1` is set
   (upstream bug: the fused SiLU+FP4-quant path is enabled regardless of backend).
 - Quantization may change behaviour on inputs unlike the calibration mixture.
@@ -200,7 +263,8 @@ OpenAI-compatible API; thinking is toggled with `chat_template_kwargs: {"enable_
 ## Files
 - `model.safetensors`, `config.json`, `hf_quant_config.json` — NVFP4 checkpoint (+ BF16 MTP head, FP32 mHC).
 - Upstream (unchanged): `tokenizer*.json`, `chat_template.jinja`, `*processor_config.json`, `generation_config.json`, `modeling_sensenova_loop.py`.
-- `runtime/` — tested launcher, SGLang overlay and patches, probe script, compatibility notes.
+- `runtime-v2/` — optimized profiles, Triton source, draft token map, final results and differential tests.
+- `runtime/` — original tested launcher, SGLang overlay and patches, probe script, compatibility notes.
 - `quantization/` — quantization/verification scripts, stats, structural verification report, environment lock, calibration manifest.
 - `evaluation/` — quality gates, eval summaries, paired comparison, perf JSONs, kernel trace summary, reference checks.
 - `SHA256SUMS` — checksums of every file.

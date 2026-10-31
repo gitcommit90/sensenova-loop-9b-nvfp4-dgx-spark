@@ -1,0 +1,2 @@
+mmlu_pro   n= 60 acc=0.650 CI95=[0.524,0.758] err=0 trunc=10 mean_tok=594.25 214.7s
+wrote runs/var/frozen_mmlu_2/summary.json

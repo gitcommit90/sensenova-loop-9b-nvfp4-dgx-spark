@@ -1,0 +1,5 @@
+DIFF tool: first divergence at char 14/171: ref=...'[{"id": "call_2effe986a1d0404ebab18a0c", "index": 0, "'
+      new=...'[{"id": "call_13aecb718b3c4d8d9d135739", "index": 0, "'
+DIFF image: first divergence at char 115/216: ref=...'r" logos, is driving on a road with its driver visible inside. Behind it, a whit'
+      new=...'r" logos, is driving on a road with its amber warning lights on. Behind it, a wh'
+identical 10/12

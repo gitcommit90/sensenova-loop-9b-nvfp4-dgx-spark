@@ -1,0 +1,2 @@
+mmlu_pro   n= 60 acc=0.650 CI95=[0.524,0.758] err=0 trunc=9 mean_tok=599.4333333333333 119.6s
+wrote runs/var/v2_fast_mmlu_2/summary.json
